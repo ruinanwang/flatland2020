@@ -7,4 +7,4 @@ CS238 Final Project - [Link to official challenge site](https://flatland.aicrowd
 - Flatland
 
 ### Training
-``` python reinforcement_learning/multi_agent_training.py -n 1000 ```
+``` python reinforcement_learning/training.py -n 1000 ```
