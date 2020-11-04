@@ -24,7 +24,6 @@ base_dir = Path(__file__).resolve().parent.parent
 sys.path.append(str(base_dir))
 
 from flatland_utils.timer import Timer
-from flatland_utils.observation_utils import normalize_observation
 from reinforcement_learning.flatland_policy import DDDQNPolicy
 
 from copy import copy
@@ -399,7 +398,8 @@ def eval_policy(env, policy, train_params, obs_params):
         for step in range(max_steps - 1):
             for agent in env.get_agent_handles():
                 if obs[agent]:
-                    agent_obs[agent] = normalize_observation(obs[agent], tree_depth=tree_depth, observation_radius=observation_radius)
+                    observation = obs[agent]
+                    agent_obs[agent] = np.concatenate((observation[1], observation[2]), axis = 2)
 
                 action = 0
                 if info['action_required'][agent]:
