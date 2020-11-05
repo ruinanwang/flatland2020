@@ -29,12 +29,12 @@ from reinforcement_learning.flatland_policy import DDDQNPolicy
 from copy import copy
 
 
-# try:
-#     import wandb
+try:
+    import wandb
 
-#     wandb.init(sync_tensorboard=True)
-# except ImportError:
-#     print("Install wandb to log to Weights & Biases")
+    wandb.init(sync_tensorboard=True)
+except ImportError:
+    print("Install wandb to log to Weights & Biases")
 
 """
 This file shows how to train multiple agents using a reinforcement learning approach.
@@ -292,7 +292,7 @@ def train_agent(train_params, train_env_params, eval_env_params, obs_params):
 
         # Print logs
         if episode_idx % checkpoint_interval == 0:
-            torch.save(policy.qnetwork_local, '/Users/zhouqirui/Desktop/Project/neurips2020-flatland-starter-kit-master/checkpoints/' + training_id + '-' + str(episode_idx) + '.pth')
+            torch.save(policy.qnetwork_local, './checkpoints/' + training_id + '-' + str(episode_idx) + '.pth')
 
             if save_replay_buffer:
                 policy.save_replay_buffer('./replay_buffers/' + training_id + '-' + str(episode_idx) + '.pkl')
