@@ -10,7 +10,7 @@ from pprint import pprint
 import numpy as np
 import torch
 from flatland.envs.malfunction_generators import malfunction_from_params, MalfunctionParameters
-from flatland.envs.observations import TreeObsForRailEnv
+from flatland.envs.observations import TreeObsForRailEnv, GlobalObsForRailEnv
 from flatland.envs.predictions import ShortestPathPredictorForRailEnv
 from flatland.envs.rail_env import RailEnv
 from flatland.envs.rail_generators import sparse_rail_generator
@@ -20,10 +20,9 @@ from flatland.utils.rendertools import RenderTool
 base_dir = Path(__file__).resolve().parent.parent
 sys.path.append(str(base_dir))
 
-from utils.deadlock_check import check_if_all_blocked
-from utils.timer import Timer
-from utils.observation_utils import normalize_observation
-from reinforcement_learning.dddqn_policy import DDDQNPolicy
+from flatland_utils.deadlock_check import check_if_all_blocked
+from flatland_utils.timer import Timer
+from reinforcement_learning.flatland_policy import DDDQNPolicy
 
 
 def eval_policy(env_params, checkpoint, n_eval_episodes, max_steps, action_size, state_size, seed, render, allow_skipping, allow_caching):
@@ -33,7 +32,7 @@ def eval_policy(env_params, checkpoint, n_eval_episodes, max_steps, action_size,
     }
 
     policy = DDDQNPolicy(state_size, action_size, Namespace(**parameters), evaluation_mode=True)
-    policy.qnetwork_local = torch.load(checkpoint)
+    policy.qnetwork_local = torch.load(checkpoint,map_location=torch.device('cpu'))
 
     env_params = Namespace(**env_params)
 
@@ -61,14 +60,8 @@ def eval_policy(env_params, checkpoint, n_eval_episodes, max_steps, action_size,
         1. / 4.: 0.0  # Slow freight train
     }
 
-    # Observation parameters
-    observation_tree_depth = env_params.observation_tree_depth
-    observation_radius = env_params.observation_radius
-    observation_max_path_depth = env_params.observation_max_path_depth
-
     # Observation builder
-    predictor = ShortestPathPredictorForRailEnv(observation_max_path_depth)
-    tree_observation = TreeObsForRailEnv(max_depth=observation_tree_depth, predictor=predictor)
+    global_observation = GlobalObsForRailEnv()
 
     # Setup the environment
     env = RailEnv(
@@ -82,7 +75,7 @@ def eval_policy(env_params, checkpoint, n_eval_episodes, max_steps, action_size,
         schedule_generator=sparse_schedule_generator(speed_profiles),
         number_of_agents=n_agents,
         malfunction_generator_and_process_data=malfunction_from_params(malfunction_parameters),
-        obs_builder_object=tree_observation
+        obs_builder_object=global_observation
     )
 
     if render:
@@ -140,7 +133,8 @@ def eval_policy(env_params, checkpoint, n_eval_episodes, max_steps, action_size,
 
                     else:
                         preproc_timer.start()
-                        norm_obs = normalize_observation(obs[agent], tree_depth=observation_tree_depth, observation_radius=observation_radius)
+                        observation = obs[agent]
+                        norm_obs = np.concatenate((observation[1], observation[2]), axis=2)
                         preproc_timer.end()
 
                         inference_timer.start()
@@ -311,11 +305,7 @@ def evaluate_agents(file, n_evaluation_episodes, use_gpu, render, allow_skipping
     # Calculate space dimensions and max steps
     max_steps = int(4 * 2 * (env_params.x_dim + env_params.y_dim + (env_params.n_agents / env_params.n_cities)))
     action_size = 5
-    tree_observation = TreeObsForRailEnv(max_depth=env_params.observation_tree_depth)
-    tree_depth = env_params.observation_tree_depth
-    num_features_per_node = tree_observation.observation_dim
-    n_nodes = sum([np.power(4, i) for i in range(tree_depth + 1)])
-    state_size = num_features_per_node * n_nodes
+    state_size = env_params.x_dim * env_params.y_dim
 
     results = []
     if render:

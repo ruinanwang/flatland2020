@@ -37,10 +37,10 @@ class DDDQNPolicy(Policy):
         # Device
         if parameters.use_gpu and torch.cuda.is_available():
             self.device = torch.device("cuda:0")
-            # print("🐇 Using GPU")
+            print("🐇 Using GPU")
         else:
             self.device = torch.device("cpu")
-            # print("🐢 Using CPU")
+            print("🐢 Using CPU")
 
         # Q-Network
         self.qnetwork_local = DuelingQNetwork(state_size, action_size, hidsize1=self.hidsize, hidsize2=self.hidsize).to(self.device)
@@ -54,13 +54,9 @@ class DDDQNPolicy(Policy):
             self.loss = 0.0
 
     def act(self, state, eps=0.):
-        # np.reshape(state, (7,25,25))
         state = torch.from_numpy(state).float().unsqueeze(0).to(self.device)
         self.qnetwork_local.eval()
         with torch.no_grad():
-            
-            # newS = torch.reshape(state, (1, 7, 25,25))
-            # print(newS.shape)
             action_values = self.qnetwork_local(state)
         self.qnetwork_local.train()
 
@@ -86,10 +82,7 @@ class DDDQNPolicy(Policy):
     def _learn(self):
         experiences = self.memory.sample()
         states, actions, rewards, next_states, dones = experiences
-        # print(states.shape)
         # Get expected Q values from local model
-        # print(self.qnetwork_local(states).shape)
-        # print(actions.shape)
         q_expected = self.qnetwork_local(states).gather(1, actions)
 
         if self.double_dqn:

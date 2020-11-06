@@ -25,16 +25,9 @@ sys.path.append(str(base_dir))
 
 from flatland_utils.timer import Timer
 from reinforcement_learning.flatland_policy import DDDQNPolicy
+from reinforcement_learning.random_training import RandomAgent
 
-from copy import copy
 
-
-# try:
-#     import wandb
-
-#     wandb.init(sync_tensorboard=True)
-# except ImportError:
-#     print("Install wandb to log to Weights & Biases")
 
 """
 This file shows how to train multiple agents using a reinforcement learning approach.
@@ -45,7 +38,7 @@ Submission documentation: https://flatland.aicrowd.com/getting-started/first-sub
 """
 
 
-def create_rail_env(env_params, tree_observation):
+def create_rail_env(env_params, observation):
     n_agents = env_params.n_agents
     x_dim = env_params.x_dim
     y_dim = env_params.y_dim
@@ -72,7 +65,7 @@ def create_rail_env(env_params, tree_observation):
         schedule_generator=sparse_schedule_generator(),
         number_of_agents=n_agents,
         malfunction_generator_and_process_data=malfunction_from_params(malfunction_parameters),
-        obs_builder_object=tree_observation,
+        obs_builder_object=observation,
         random_seed=seed
     )
 
@@ -91,10 +84,6 @@ def train_agent(train_params, train_env_params, eval_env_params, obs_params):
     now = datetime.now()
     training_id = now.strftime('%y%m%d%H%M%S')
 
-    # Observation parameters
-    observation_tree_depth = obs_params.observation_tree_depth
-    observation_radius = obs_params.observation_radius
-    observation_max_path_depth = obs_params.observation_max_path_depth
 
     # Training parameters
     eps_start = train_params.eps_start
@@ -111,15 +100,11 @@ def train_agent(train_params, train_env_params, eval_env_params, obs_params):
     np.random.seed(seed)
 
     # Observation builder
-    predictor = ShortestPathPredictorForRailEnv(observation_max_path_depth)
-    tree_observation = TreeObsForRailEnv(max_depth=observation_tree_depth, predictor=predictor)
     global_observation = GlobalObsForRailEnv()
 
     # Setup the environments
-    # train_env = create_rail_env(train_env_params, tree_observation)
     train_env = create_rail_env(train_env_params, global_observation)
     train_env.reset(regenerate_schedule=True, regenerate_rail=True)
-    # eval_env = create_rail_env(eval_env_params, tree_observation)
     eval_env = create_rail_env(eval_env_params, global_observation)
     eval_env.reset(regenerate_schedule=True, regenerate_rail=True)
 
@@ -128,9 +113,6 @@ def train_agent(train_params, train_env_params, eval_env_params, obs_params):
         env_renderer = RenderTool(train_env, gl="PGL")
 
     # Calculate the state size given the depth of the tree observation and the number of features
-    # n_features_per_node = train_env.obs_builder.observation_dim
-    # n_nodes = sum([np.power(4, i) for i in range(observation_tree_depth + 1)])
-    # state_size = n_features_per_node * n_nodes
     state_size = train_env.width * train_env.height
 
     # The action space of flatland is 5 discrete actions
@@ -216,7 +198,7 @@ def train_agent(train_params, train_env_params, eval_env_params, obs_params):
             if obs[agent]:
                 observation = obs[agent]
                 agent_obs[agent] = np.concatenate((observation[1], observation[2]), axis = 2)
-                agent_prev_obs[agent] = copy(agent_obs[agent])
+                agent_prev_obs[agent] = agent_obs[agent].copy()
 
         # Run episode
         for step in range(max_steps - 1):
